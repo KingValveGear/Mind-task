@@ -1,0 +1,4 @@
+{"id":"s12345","params":{"LightLux":5,"VolumeSize":6},"method":"thing.event.property.post"}
+
+
+{"id":"s12345","params":{"LightLux":0.00,"VolumeSize":0.00},"method":"thing.event.property.post"}
