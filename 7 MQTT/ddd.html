@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>mqtt.min.js 测试</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script> <!-- 引处MQTT.MINI.JS库文件 -->
+</head>
+
+
+<body>
+            <h3>开关控制</h3>
+        <input type="button" value="打开开关" onclick="open_switch()"/>
+        <input type="button" value="关闭开关" onclick="close_switch()"/>
+            <h3>消息发送</h3>
+        <input type="text" id="msg"/>
+        <input type="button" value="发送消息" onclick="send_chat()"/>
+        <input type="button" value="循环消息" onclick="start()"/>
+        <input type="button" value="停止循环" onclick="stop()"/>
+        <!-- 数据接收开始 -->
+        <div class="receiveData left">
+            <h3>消息接收&nbsp;&nbsp;&nbsp;<button class="receiveClear">清除</button></h3>
+            <textarea class="receiveArea" name="" id="" cols="85" rows="30"></textarea>
+ 
+        </div>
+        <!-- 数据接收结束 -->
+</body>
+
+<script>
+        let receiveClear = document.getElementsByClassName('receiveClear')[0];
+        let receiveArea = document.getElementsByClassName('receiveArea')[0];
+            var topic_chat = 'testtopic/chat';
+                topic_switch = 'testtopic/switch';
+
+    //连接，订阅，发布/接收消息，
+    //参考https://www.jianshu.com/p/4fd95cae1a9c
+
+        //连接选项，mqtt用户名和密码，这里面应该还可以加上其他参数，具体看官方文档: https://www.npmjs.com/package/mqtt#connect 和https://github.com/mqttjs/mqtt-packet#connect
+    const options = {
+        connectTimeout: 4000, // 超时时间
+        //username: 'foxzenith',
+        //password: '12344321',
+       //clientId: 'mqttjs_' + (Math.random() * 1000000).toString()
+    }
+    //console.log(options.clientId);
+
+    //浏览器采用websocket协议，路径固定为/mqtt
+    const client = mqtt.connect("ws://122.51.245.182:8083/mqtt", options)
+
+    client.on('reconnect', (error) => {
+    	console.log('正在重连:', error)
+    })
+
+    client.on('error', (error) => {
+    	console.log('连接失败:', error)
+    })
+
+//建立连接
+client.on('connect', (e) => {
+	console.log('成功连接服务器')
+
+	/************ 
+	// 订阅一个主题
+	client.subscribe('hello', { qos: 1 }, (error) => {
+		if (!error) {
+			cosnole.log('订阅成功')
+			client.publish('hello', 'Hello EMQ', { qos: 1, rein: false }, (error) => {
+			cosnole.log(error || '发布成功')
+			})
+		}
+	})
+	***********/
+
+
+	/************ 
+    	// 订阅不同 qos 的不同主题
+    	client.subscribe(
+        		[
+           	 		{ hello: 1 }, 
+            			{ 'one/two/three': 2 }, 
+            			{ '#': 0 }
+        		], 
+        		onSubscribeSuccess,
+    	)
+	***********/
+
+    	// 订阅多个主题
+    	//client.subscribe(['hello', 'one/two/three/#', '#'], { qos: 1 },  onSubscribeSuccess)  
+    	//client.subscribe(['testtopic/switch', 'testtopic/chat'], { qos: 0 },  onSubscribeSuccess)//按https://www.jianshu.com/p/4fd95cae1a9c 改写失败
+    	client.subscribe(['testtopic/switch', 'testtopic/chat'], { qos: 0 },  'onSubscribeSuccess')//onSubscribeSuccess加上引号测试成功
+	/**********每次订阅一个的写法
+    	client.subscribe('testtopic/switch', { qos: 0 }, (error) => {
+       		 if (!error) {
+            			console.log('订阅testtopic/switch成功')
+            			//client.publish('hello', 'Hello EMQ', { qos: 1, rein: false }, (error) => {
+                			//console.log(error || '发布成功')
+           	 		//})
+        		}
+    	})
+    	client.subscribe('testtopic/chat', { qos: 0 }, (error) => {
+       		 if (!error) {
+            			console.log('订阅testtopic/chat成功')
+            			//client.publish('hello', 'Hello EMQ', { qos: 1, rein: false }, (error) => {
+                			//console.log(error || '发布成功')
+           	 		//})
+        		}
+    	})
+	*****************/
+})
+
+/***********
+// 取消订阅
+client.unsubscribe(
+    // topic, topic Array, topic Array-Onject
+    'hello',
+    onUnsubscribeSuccess,
+)
+***********/
+
+
+
+function send_chat(){
+//发送函数
+	var s = document.getElementById("msg").value;
+                if(s){  //判断文本框内容是否为空
+		if (client.connected) { //判断客户端是否连接
+                		// s = "{time:"+new Date().Format("yyyy-MM-dd hh:mm:ss")+", content:"+(s)+", from: web console}";
+			//es6的新的模板字符串的用法(from:xiehaitao) --s是个变量，可以把"+(s)+"改写成${s}       foxzenith20201206
+ 			//s = `{"time":"${new Date().Format("yyyy-MM-dd hh:mm:ss")}", "from": "foxzenith", "content":"${s}"}`;
+                		//更换新的时间显示函数       foxzenith20201207
+ 			s = `{"time":"${formartDate(new Date())}", "from": "foxzenith", "content":"${s}"}`;
+        			client.publish(topic_chat, s, (error) => {
+				console.log(error || '消息发布成功')
+			})
+                		document.getElementById("msg").value = "";
+                	}
+		else{
+			    console.log('客户端未连接')
+			    return
+		}
+	}
+	else{
+	  	console.log("请先在消息框输入要发送的消息");
+	}
+}            
+
+function start(){
+//启动函数
+	var content = document.getElementById("msg").value;
+	if(content){
+		if(client.isConnected){
+			window.tester = window.setInterval(function(){
+			//var s = "{time:"+new Date().Format("yyyy-MM-dd hh:mm:ss")+", content:"+(count++)+", from: web console}";
+			//es6的新的模板字符串的用法(from:xiehaitao) --s是个变量，可以把"+(s)+"改写成${s}       foxzenith20201206
+			//var s = `{"time":"${new Date().Format("yyyy-MM-dd hh:mm:ss")}", "from": "foxzenith autosend", "content":"${content}"}`;
+			//更换新的时间显示函数       foxzenith20201207
+			var s = `{"time":"${formartDate(new Date())}", "from": "foxzenith autosend", "content":"${content}"}`;
+			client.publish(topic_chat, s)
+			}, 5000);
+		}
+		else{
+			    console.log('客户端未连接')
+			    return
+		}
+	  }
+	  else{
+	  	console.log("请先在消息框输入要发送的消息");
+	  }
+}
+            
+function stop(){
+//停止函数
+	window.clearInterval(window.tester);
+}
+
+
+function open_switch(){
+//开函数
+	client.publish('testtopic/switch', '1')
+}
+
+function close_switch(){
+//关函数
+	client.publish('testtopic/switch', '0')
+}
+
+// 定义一个时间格式化的方法
+function formartDate(date){
+	return `${date.getFullYear()}-${date.getMonth() + 1}-${ date.getDate()} ${date.getHours()}:${date.getMinutes()}:${ date.getSeconds()}`
+}
+
+
+/***************此处为原mqttws32.js方法，不适用mqtt.js，测试无法在接收框显示
+//注册消息接收处理事件
+client.onMessageArrived = onMessageArrived;
+function onMessageArrived(message) {  
+	console.log("收到消息:"+message.payloadString);  
+}
+************/
+
+//接收消息
+client.on('message', (topic, message) => {
+	console.log('收到来自', topic, '的消息', message.toString()) //F12浏览器console显示
+	receiveArea.append("\r\n"+ formartDate(new Date()));
+	receiveArea.append("\r\n"+'主题:'+topic);
+	try {//字符串显示
+		receiveArea.append("\r\n"+'字符串消息:');
+		receiveArea.append(message);
+		receiveArea.append("\r\n");
+	} catch (e) {
+		receiveArea.append("\r\n");
+	}
+/************16进制无效，因无message.payloadBytes方法
+	try {//16进制显示
+		receiveArea.append('16进制消息:');
+		receiveArea.append(hex2str(message.payloadBytes) +"\r\n");
+		receiveArea.append("\r\n");
+		//console.log(message.payloadBytes);
+	} catch (e) {
+		receiveArea.append("\r\n");
+	}
+***********/
+	receiveArea.scrollTop = receiveArea.scrollHeight;
+})
+
+
+
+// 监听数据接收清除按钮的点击
+receiveClear.onclick = function(){
+	receiveArea.innerHTML = '';
+	//receiveArea.value = '';
+}
+
+/************16进制无效，因无message.payloadBytes方法
+// 16进制数,转为字符串显示
+function hex2str(hex) {
+	let str = '';
+	let i;
+	for(i = 0; i < hex.length;i++) {
+		if(hex[i] <= 15){
+			str = str + "0"+(hex[i].toString(16)+" ")
+                	}else{
+			str = str + (hex[i].toString(16)+" ")
+                	}
+	}
+	return str;
+}
+************/
+
+</script>
+
+</html>
